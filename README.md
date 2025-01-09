@@ -40,16 +40,15 @@ This bot automatically performs token transactions between addresses stored in t
    pip install web3 python-dotenv rich requests
 4. **Address Configuration File**: On the first run of the bot, an `address.txt` file will be automatically created containing the addresses generated from the private keys in the `.env` file. This file is used as the list of destination addresses for transactions.
 
-## Join Telegram Channel
-[Telegram Channel](https://t.me/dasarpemulung)
-
-## Tutorial Video
-
-[Tutorial With Video](https://youtu.be/i-87X0Zu_d8?si=dRZYh7zsO_1Eklot)
-
 ## Running the Bot
 
 1. **Run the Bot**: Use the following command to run the bot:
    ```bash
    python gnit.py
 
+## Join Telegram Channel
+[Telegram Channel](https://t.me/dasarpemulung)
+
+## Tutorial Video
+
+[Tutorial With Video](https://youtu.be/i-87X0Zu_d8?si=dRZYh7zsO_1Eklot)
