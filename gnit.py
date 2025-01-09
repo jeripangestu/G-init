@@ -100,7 +100,7 @@ def process_transactions_for_key(private_key, recipient_addresses):
         console.print(f"[yellow]💸 Sending {amount:.6f} {CURRENCY_SYMBOL} from {sender_address} to {recipient_address}[/yellow]")
 
         tx_hash = send_transaction(sender_address, recipient_address, amount, private_key)
-        time.sleep(random.randint(12, 25))
+        time.sleep(random.randint(25, 30))
 
 # Main Loop for Multithreading
 def main():
