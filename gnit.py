@@ -7,6 +7,7 @@ from threading import Thread
 from rich.console import Console
 from rich.table import Table
 from rich import box
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -21,27 +22,43 @@ with open(".env", "r") as file:
 if not PRIVATE_KEYS:
     raise ValueError("No private keys found in .env file!")
 
+# Load proxies from proxy.txt
+with open("proxy.txt", "r") as file:
+    PROXIES = [line.strip() for line in file if line.strip()]
+
+# If no proxies, set PROXIES to None (no proxy will be used)
+if not PROXIES:
+    console.print("[bold yellow]⚠️ No proxies found in proxy.txt. Running without proxies.[/bold yellow]")
+    PROXIES = [None]
+
 MIN_AMOUNT = float(input("Enter minimum transfer amount: ").strip())
 MAX_AMOUNT = float(input("Enter maximum transfer amount: ").strip())
 
-# Genesis Testnet Configuration
+# Genesis Initverse Testnet Configuration
 RPC_URL = "https://rpc-testnet.inichain.com"
 CHAIN_ID = 7234
 CURRENCY_SYMBOL = "INI"
 
-# Connect to Blockchain
-web3 = Web3(Web3.HTTPProvider(RPC_URL))
-if not web3.is_connected():
-    console.print("[bold red]❌ Failed to connect to Haust Testnet![/bold red]")
-    raise ConnectionError("Failed to connect to Haust Testnet!")
+# Connect to Blockchain with Proxy
+def create_web3_with_proxy(proxy_url):
+    if proxy_url:
+        session = requests.Session()
+        session.proxies = {
+            "http": proxy_url,
+            "https": proxy_url
+        }
+        return Web3(Web3.HTTPProvider(RPC_URL, session=session))
+    else:
+        return Web3(Web3.HTTPProvider(RPC_URL))
 
-console.print(f"[bold green]✅ Connected to Genesis Testnet ({RPC_URL})[/bold green]")
+# Map private keys to proxies (reuse proxies if fewer than private keys)
+proxy_mapping = {key: PROXIES[i % len(PROXIES)] for i, key in enumerate(PRIVATE_KEYS)}
 
 # Get addresses from private keys
 def get_addresses_from_private_keys(keys):
     addresses = []
     for key in keys:
-        address = web3.eth.account.from_key(key).address
+        address = Web3().eth.account.from_key(key).address
         addresses.append(address)
     return addresses
 
@@ -60,7 +77,7 @@ with open("address.txt", "r") as file:
 if not recipient_addresses:
     raise ValueError("No recipient addresses found in address.txt.")
 
-def send_transaction(sender, recipient, amount, private_key):
+def send_transaction(web3, sender, recipient, amount, private_key):
     try:
         nonce = web3.eth.get_transaction_count(sender, "pending")  # Use pending nonce to handle queued transactions
         gas_price = web3.eth.gas_price
@@ -84,9 +101,10 @@ def send_transaction(sender, recipient, amount, private_key):
         console.print(f"[bold red]❌ Transaction failed:[/bold red] {e}")
         return None
 
-def process_transactions_for_key(private_key, recipient_addresses):
+def process_transactions_for_key(private_key, recipient_addresses, proxy_url):
+    web3 = create_web3_with_proxy(proxy_url)
     sender_address = web3.eth.account.from_key(private_key).address
-    console.print(f"\n[bold cyan]🔑 Starting transactions for Private Key:[/bold cyan] {sender_address}")
+    console.print(f"\n[bold cyan]🔑 Starting transactions for Private Key:[/bold cyan] {sender_address} [green](Using Proxy: {proxy_url or 'No Proxy'})[/green]")
 
     # Filter out sender address from recipient addresses
     filtered_recipients = [addr for addr in recipient_addresses if addr.lower() != sender_address.lower()]
@@ -99,7 +117,7 @@ def process_transactions_for_key(private_key, recipient_addresses):
         amount = random.uniform(MIN_AMOUNT, MAX_AMOUNT)
         console.print(f"[yellow]💸 Sending {amount:.6f} {CURRENCY_SYMBOL} from {sender_address} to {recipient_address}[/yellow]")
 
-        tx_hash = send_transaction(sender_address, recipient_address, amount, private_key)
+        tx_hash = send_transaction(web3, sender_address, recipient_address, amount, private_key)
         time.sleep(random.randint(25, 30))
 
 # Main Loop for Multithreading
@@ -113,7 +131,8 @@ def main():
         table.add_column("Status", style="bold")
 
         for private_key in PRIVATE_KEYS:
-            thread = Thread(target=process_transactions_for_key, args=(private_key, recipient_addresses))
+            proxy_url = proxy_mapping[private_key]
+            thread = Thread(target=process_transactions_for_key, args=(private_key, recipient_addresses, proxy_url))
             threads.append(thread)
             thread.start()
 
